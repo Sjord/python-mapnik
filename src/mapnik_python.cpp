@@ -197,8 +197,8 @@ boost::thread_specific_ptr<PyThreadState> python_thread::state;
 
 struct agg_renderer_visitor_1
 {
-    agg_renderer_visitor_1(mapnik::Map const& m, double scale_factor, unsigned offset_x, unsigned offset_y)
-        : m_(m), scale_factor_(scale_factor), offset_x_(offset_x), offset_y_(offset_y) {}
+    agg_renderer_visitor_1(mapnik::Map const& m, double scale_factor, unsigned offset_x, unsigned offset_y, double scale_denominator)
+        : m_(m), scale_factor_(scale_factor), offset_x_(offset_x), offset_y_(offset_y), scale_denominator_(scale_denominator) {}
 
     template <typename T>
     void operator() (T & pixmap)
@@ -211,13 +211,14 @@ struct agg_renderer_visitor_1
     double scale_factor_;
     unsigned offset_x_;
     unsigned offset_y_;
+    double scale_denominator_;
 };
 
 template <>
 void agg_renderer_visitor_1::operator()<mapnik::image_rgba8> (mapnik::image_rgba8 & pixmap)
 {
     mapnik::agg_renderer<mapnik::image_rgba8> ren(m_,pixmap,scale_factor_,offset_x_, offset_y_);
-    ren.apply();
+    ren.apply(scale_denominator_);
 }
 
 struct agg_renderer_visitor_2
@@ -310,10 +311,11 @@ void render(mapnik::Map const& map,
             mapnik::image_any& image,
             double scale_factor = 1.0,
             unsigned offset_x = 0u,
-            unsigned offset_y = 0u)
+            unsigned offset_y = 0u,
+            double scale_denominator = 0.0)
 {
     python_unblock_auto_block b;
-    mapnik::util::apply_visitor(agg_renderer_visitor_1(map, scale_factor, offset_x, offset_y), image);
+    mapnik::util::apply_visitor(agg_renderer_visitor_1(map, scale_factor, offset_x, offset_y, scale_denominator), image);
 }
 
 void render_with_vars(mapnik::Map const& map,
@@ -390,12 +392,13 @@ void render5(mapnik::Map const& map,
              PycairoContext* py_context,
              double scale_factor = 1.0,
              unsigned offset_x = 0,
-             unsigned offset_y = 0)
+             unsigned offset_y = 0,
+             double scale_denominator = 0)
 {
     python_unblock_auto_block b;
     mapnik::cairo_ptr context(cairo_reference(py_context->ctx), mapnik::cairo_closer());
     mapnik::cairo_renderer<mapnik::cairo_ptr> ren(map,context,scale_factor,offset_x, offset_y);
-    ren.apply();
+    ren.apply(scale_denominator);
 }
 
 void render6(mapnik::Map const& map, PycairoContext* py_context)
